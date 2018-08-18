@@ -1,0 +1,58 @@
+# This is a simple trading algorithm that buy low sell high
+
+# Algorithm:
+# 1.    Use 27 stocks context, most in technology and healthcare sector 
+# 2.    For each stock in these stocks
+# 3.    Buy in long only when current price lower than 45 day price average, and when I have over  $2000 cash left, and when I currently do not hold any position for that one particular stock
+
+# 4.    buy in # of shares = $2000 / current stock price
+# 5.    Hold until stock price has come up
+# 6.    Sell once stock price is higher and total earning is larger than $100
+
+def initialize(context):
+  # This initialize function sets variables and parameters that I will
+  # use in this algorithm
+
+
+  # I use 27 stocks for this algorithm, context.stock contains their 
+  # security ID.
+  context.stocks = [sid(9883),sid(5328),sid(26693),sid(46569),sid(19250),sid(3951),sid(6704),sid(23283), sid(18221), sid(7792),sid(26440),sid(1687),sid(26401), sid(47872),sid(49736),sid(12200),sid(2427),sid(32652),sid(7285),sid(2968),sid(22488),sid(35920),sid(50693),sid(50763),sid(3718),sid(23103),sid(168)]
+
+  context.total_cost_per_trade = 2000
+  set_commission(commission.PerTrade(cost = 1))  
+
+  
+  # set the maximum and minimum amount
+  # to go long or short our security.  
+  context.max_notional = 2000.0
+  context.min_notional = -2000.0
+
+def handle_data(context, data):
+
+    price_history = data.history(context.stocks, fields="price",       bar_count=45, frequency="1d")
+    for s in context.stocks:
+        average_45_price = price_history[s].mean
+        current_price = price_history[s][-1]
+        cost_base = context.portfolio.positions[s].cost_basis
+        current_position = context.portfolio.positions[s].amount
+        if((current_price-cost_base)*current_position > 100) and current_position > 0:
+            #for each stock, if I currently own this stock, 
+            #and its current price is higher than the price 
+            #I purchse it, and can make me more than $100 profit
+            #I will exit position to realize the $100 gain
+            
+            #current_position !=0 think about it
+            order_target(s, 0)
+            log.info("Selling %s" % (s.symbol))
+            cash = context.portfolio.cash
+            log.info("Cash left: %s" % (cash))
+        cash = context.portfolio.cash
+        if current_position == 0 and current_price < average_45_price and cash > context.total_cost_per_trade:
+            #for each stock, if I do not own this stock, 
+            #and its current price is lower than past 45 day average 
+            #I will buy it if I have enough cash left
+            s_quantity = context.total_cost_per_trade/current_price
+            order(s, s_quantity)
+            log.info("Buying %s" % (s.symbol))
+            cash = context.portfolio.cash
+            log.info("Cash left: %s" % (cash))
